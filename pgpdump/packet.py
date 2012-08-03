@@ -555,7 +555,14 @@ class SecretKeyPacket(PublicKeyPacket):
 
             if has_iv:
                 s2k_iv_len = self.lookup_sym_algorithm_iv(cipher_id)
-                self.s2k_iv = self.data[offset:offset+s2k_iv_len]
+                self.s2k_iv = []
+                for i in range(s2k_iv_len):
+                    bytes = self.data[offset]
+                    hexval = '%02x' % bytes
+                    offset += 1
+                    self.s2k_iv.append(hexval)
+
+                self.s2k_iv = ' '.join(self.s2k_iv)
                 offset += s2k_iv_len
 
             # TODO decrypt key data
