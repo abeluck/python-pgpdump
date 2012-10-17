@@ -457,11 +457,16 @@ class SecretKeyPacket(PublicKeyPacket):
         self.s2k_hash = None
         self.s2k_iv = None
         self.checksum = None
-        self.exponent_d = None #RSA
-        self.prime_p = None # RSA
-        self.prime_q = None # RSA
-        self.multiplicative_inverse = None # RSA
-        self.exponent_x = None # DSA and Elgamal
+
+        # RSA
+        self.exponent_d = None
+        self.prime_p = None
+        self.prime_q = None
+        self.multiplicative_inverse = None
+
+        # DSA and Elgamal
+        self.exponent_x = None
+
         super(SecretKeyPacket, self).__init__(*args, **kwargs)
 
     def parse(self):
@@ -472,11 +477,13 @@ class SecretKeyPacket(PublicKeyPacket):
         self.s2k_id = self.data[offset]
         offset += 1
 
-        if self.s2k_id == 0: # plaintext key data
+        # plaintext key data
+        if self.s2k_id == 0:
             offset = self.parse_private_key_material(offset)
             self.checksum = get_int2(self.data, offset)
             offset += 2
-        elif self.s2k_id in (254,255): # encrypted key data
+        # encrypted key data
+        elif self.s2k_id in (254,255):
             cipher_id = self.data[offset]
             offset += 1
             self.s2k_cipher = self.lookup_sym_algorithm(cipher_id)
@@ -493,13 +500,15 @@ class SecretKeyPacket(PublicKeyPacket):
             self.s2k_type = name
 
             has_iv = True
-            if s2k_type_id == 0: # Simple string-to-key
+            if s2k_type_id == 0:
+                # Simple string-to-key
                 hash_id = self.data[offset]
                 offset +=1
 
                 self.s2k_hash = self.lookup_hash_algorithm(hash_id)
 
-            elif s2k_type_id == 1: # Salted string-to-key
+            elif s2k_type_id == 1:
+                # Salted string-to-key
                 hash_id = self.data[offset]
                 offset +=1
 
@@ -507,9 +516,11 @@ class SecretKeyPacket(PublicKeyPacket):
                 # ignore 8 bytes
                 offset += 8
 
-            elif s2k_type_id == 2: # Reserved
+            elif s2k_type_id == 2:
+                # Reserved
                 pass
-            elif s2k_type_id == 3: # iterated and salted
+            elif s2k_type_id == 3:
+                # iterated and salted
                 hash_id = self.data[offset]
                 offset += 1
 
@@ -518,16 +529,16 @@ class SecretKeyPacket(PublicKeyPacket):
                 offset += 8
                 # ignore count
                 offset += 1
-                # TODO: parse and store count ?
-
-            elif 100 <= s2k_type_id <= 110: # GnuPG string-to-key
+                # TODO: parse and store count ? no need for count yet
+            # GnuPG string-to-key
+            elif 100 <= s2k_type_id <= 110:
                 # According to g10/parse-packet.c near line 1832, the 101 packet
                 # type is a special GnuPG extension.  This S2K extension is
                 # 6 bytes in total:
                 #
                 #   Octet 0:   101
                 #   Octet 1:   hash algorithm
-                #   Octet 2-4: "GNU"
+                #   Octet 2-4: literal 3-byte string "GNU"
                 #   Octet 5:   mode integer
 
                 hash_id = self.data[offset]
@@ -544,11 +555,10 @@ class SecretKeyPacket(PublicKeyPacket):
                 if 1000 + mode == 1001:
                     has_iv = False
                 else:
-                    # TODO implement other modes?
+                    # TODO implement other modes? No need yet
                     raise PgpdumpException("Unsupported GnuPG S2K extension encountered mode: %d" % (1000+mode))
             else:
-                raise PgpdumpException("Unsupported public key algorithm %d" %
-                                       (s2k_type_id))
+                raise PgpdumpException("Unsupported public key algorithm %d" % (s2k_type_id))
 
             if s2k_length != (offset - offset_before_s2k):
                 raise PgpdumpException("Error parsing string-to-key specifier, mismatched length")
